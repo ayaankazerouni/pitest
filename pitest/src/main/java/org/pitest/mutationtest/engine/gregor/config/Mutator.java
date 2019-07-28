@@ -196,6 +196,12 @@ public final class Mutator {
    */
   private static void experimentalMutators() {
     /**
+     * Experimental mutator that removes assignments to local variables.
+     */
+     add("EXPERIMENTAL_LOCAL_VARIABLE",
+         new org.pitest.mutationtest.engine.gregor.mutators.experimental.LocalVariableMutator());
+      
+    /**
      * Experimental mutator that removed assignments to member variables.
      */
     add("EXPERIMENTAL_MEMBER_VARIABLE",
