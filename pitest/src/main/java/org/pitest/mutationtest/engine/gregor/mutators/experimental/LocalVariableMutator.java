@@ -15,7 +15,6 @@ public class LocalVariableMutator implements MethodMutatorFactory {
 
     private final class LocalVariableVisitor extends MethodVisitor {
         private final MutationContext context;
-
         private Set<Integer> locals;
 
         public LocalVariableVisitor(final MutationContext context, final MethodVisitor delegateVisitor) {
@@ -31,7 +30,7 @@ public class LocalVariableMutator implements MethodMutatorFactory {
                 if (isDeclaration) {
                     this.mutateDeclaration(opcode, var);
                 } else {
-                    this.mutateAssignment(opcode, var);
+                    this.mutateAssignment(opcode);
                 }
             } else {
                 super.visitVarInsn(opcode, var);
@@ -71,7 +70,7 @@ public class LocalVariableMutator implements MethodMutatorFactory {
 
         // For existing local variables, simply remove the values from the stack
         // and the assignment statement.
-        private void mutateAssignment(final int opcode, int var) {
+        private void mutateAssignment(final int opcode) {
             switch (opcode) {
                 case Opcodes.ISTORE:
                 case Opcodes.FSTORE:
@@ -84,9 +83,9 @@ public class LocalVariableMutator implements MethodMutatorFactory {
         }
 
         private boolean shouldMutate(final int opcode, final int var) {
-            if (opcode == Opcodes.ISTORE || opcode == Opcodes.FSTORE ||
-                    opcode == Opcodes.DSTORE || opcode == Opcodes.LSTORE ||
-                    opcode == Opcodes.ASTORE) {
+            if (opcode == Opcodes.ISTORE || opcode == Opcodes.FSTORE
+                    || opcode == Opcodes.DSTORE || opcode == Opcodes.LSTORE
+                    || opcode == Opcodes.ASTORE) {
                 final MutationIdentifier mutationId = this.context.registerMutation(
                         LocalVariableMutator.this, "Removed assignment to local variable " + var);
                 return this.context.shouldMutate(mutationId);
