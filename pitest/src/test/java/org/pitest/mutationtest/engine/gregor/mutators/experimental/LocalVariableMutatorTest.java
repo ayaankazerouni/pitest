@@ -10,7 +10,7 @@ import org.pitest.mutationtest.engine.gregor.MutatorTestBase;
 public class LocalVariableMutatorTest extends MutatorTestBase {
     @Before
     public void setupEngineToMutateOnlyLocalVariables() {
-      createTesteeWith(new LocalVariableMutator());
+        createTesteeWith(new LocalVariableMutator());
     }
 
 
@@ -33,7 +33,7 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
             return a;
         }
     }
-    
+
     @Test
     public void shouldReplaceIntAssignment1With0() throws Exception {
         final Mutant mutant = getFirstMutant(HasLocalInteger.class);
@@ -95,7 +95,7 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
     @Test
     public void shouldReplaceSecondIntAssignmentsWith0() throws Exception {
         final Mutant mutant = getNthMutant(HasLocalVariableWithSecondAssignment.class, 1);
-        assertMutantCallableReturns(new HasLocalVariableWithSecondAssignment(), mutant, 0);
+        assertMutantCallableReturns(new HasLocalVariableWithSecondAssignment(), mutant, 1);
     }
 
     private static class HasLocalAssignmentToMethodReturnValue implements Callable<Object> {
