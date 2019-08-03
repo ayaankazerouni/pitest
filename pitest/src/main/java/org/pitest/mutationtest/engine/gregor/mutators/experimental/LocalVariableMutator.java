@@ -1,5 +1,6 @@
 package org.pitest.mutationtest.engine.gregor.mutators.experimental;
 
+import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.pitest.bytecode.ASMVersion;
@@ -15,7 +16,6 @@ public class LocalVariableMutator implements MethodMutatorFactory {
 
     private final class LocalVariableVisitor extends MethodVisitor {
         private final MutationContext context;
-
         private Set<Integer> locals;
 
         public LocalVariableVisitor(final MutationContext context, final MethodVisitor delegateVisitor) {
@@ -26,16 +26,26 @@ public class LocalVariableMutator implements MethodMutatorFactory {
 
         @Override
         public void visitVarInsn(final int opcode, int var) {
-            boolean isDeclaration = this.locals.add(var);
-            if (this.shouldMutate(opcode, var)) {
-                if (isDeclaration) {
-                    this.mutateDeclaration(opcode, var);
-                } else {
-                    this.mutateAssignment(opcode, var);
+            if (this.isStore(opcode)) {
+                boolean isDeclaration = this.locals.add(var);
+                if (this.shouldMutate(var)) {
+                    if (isDeclaration) {
+                        this.mutateDeclaration(opcode, var);
+                    } else {
+                        this.mutateAssignment(opcode);
+                    }
+                    return;
                 }
-            } else {
-                super.visitVarInsn(opcode, var);
             }
+
+            super.visitVarInsn(opcode, var);
+        }
+
+        @Override
+        public void visitLocalVariable(String name, String desc, String signature,
+                                       Label start, Label end, int index) {
+            this.locals.remove(index);
+            super.visitLocalVariable(name, desc, signature, start, end, index);
         }
 
         // For initialization statements, change the assigned value to
@@ -50,6 +60,10 @@ public class LocalVariableMutator implements MethodMutatorFactory {
                     super.visitInsn(Opcodes.POP);
                     super.visitInsn(Opcodes.FCONST_0);
                     break;
+                case Opcodes.ASTORE:
+                    super.visitInsn(Opcodes.POP);
+                    super.visitInsn(Opcodes.ACONST_NULL);
+                    break;
                 case Opcodes.DSTORE:
                     super.visitInsn(Opcodes.POP2);
                     super.visitInsn(Opcodes.DCONST_0);
@@ -57,10 +71,6 @@ public class LocalVariableMutator implements MethodMutatorFactory {
                 case Opcodes.LSTORE:
                     super.visitInsn(Opcodes.POP2);
                     super.visitInsn(Opcodes.LCONST_0);
-                    break;
-                case Opcodes.ASTORE:
-                    super.visitInsn(Opcodes.POP);
-                    super.visitInsn(Opcodes.ACONST_NULL);
                     break;
             }
 
@@ -71,7 +81,7 @@ public class LocalVariableMutator implements MethodMutatorFactory {
 
         // For existing local variables, simply remove the values from the stack
         // and the assignment statement.
-        private void mutateAssignment(final int opcode, int var) {
+        private void mutateAssignment(final int opcode) {
             switch (opcode) {
                 case Opcodes.ISTORE:
                 case Opcodes.FSTORE:
@@ -83,16 +93,23 @@ public class LocalVariableMutator implements MethodMutatorFactory {
             }
         }
 
-        private boolean shouldMutate(final int opcode, final int var) {
-            if (opcode == Opcodes.ISTORE || opcode == Opcodes.FSTORE ||
-                    opcode == Opcodes.DSTORE || opcode == Opcodes.LSTORE ||
-                    opcode == Opcodes.ASTORE) {
-                final MutationIdentifier mutationId = this.context.registerMutation(
-                        LocalVariableMutator.this, "Removed assignment to local variable " + var);
-                return this.context.shouldMutate(mutationId);
+        private boolean isStore(final int opcode) {
+            switch (opcode) {
+                case Opcodes.ISTORE:
+                case Opcodes.FSTORE:
+                case Opcodes.DSTORE:
+                case Opcodes.LSTORE:
+                case Opcodes.ASTORE:
+                    return true;
+                default:
+                    return false;
             }
+        }
 
-            return false;
+        private boolean shouldMutate(final int var) {
+            final MutationIdentifier mutationId = this.context.registerMutation(
+                    LocalVariableMutator.this, "Removed assignment to local variable " + var);
+            return this.context.shouldMutate(mutationId);
         }
     }
 

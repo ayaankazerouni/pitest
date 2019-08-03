@@ -35,7 +35,7 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
     }
 
     @Test
-    public void shouldReplaceIntAssignment1With0() throws Exception {
+    public void shouldReplaceIntInitialization1With0() throws Exception {
         final Mutant mutant = getFirstMutant(HasLocalInteger.class);
         assertMutantCallableReturns(new HasLocalInteger(), mutant, 0);
     }
@@ -49,7 +49,7 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
     }
 
     @Test
-    public void shouldReplaceBooleanAssignmentTrueWithFalse() throws Exception {
+    public void shouldReplaceBooleanInitializationTrueWithFalse() throws Exception {
         final Mutant mutant = getFirstMutant(HasLocalBoolean.class);
         assertMutantCallableReturns(new HasLocalBoolean(), mutant, false);
     }
@@ -63,7 +63,7 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
     }
 
     @Test
-    public void shouldReplaceCharacterAssignmentWith0() throws Exception {
+    public void shouldReplaceCharacterInitializationWith0() throws Exception {
         final Mutant mutant = getFirstMutant(HasLocalChar.class);
         assertMutantCallableReturns(new HasLocalChar(), mutant, '\u0000');
     }
@@ -78,7 +78,7 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
     }
 
     @Test
-    public void shouldReplaceByteAssignmentWith0() throws Exception {
+    public void shouldReplaceByteInitializationWith0() throws Exception {
         final Mutant mutant = getFirstMutant(HasLocalByte.class);
         assertMutantCallableReturns(new HasLocalByte(), mutant, (byte) 0);
     }
@@ -93,28 +93,9 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
     }
 
     @Test
-    public void shouldReplaceSecondIntAssignmentsWith0() throws Exception {
+    public void shouldRemoveAssignmentToLocalVariable() throws Exception {
         final Mutant mutant = getNthMutant(HasLocalVariableWithSecondAssignment.class, 1);
         assertMutantCallableReturns(new HasLocalVariableWithSecondAssignment(), mutant, 1);
-    }
-
-    private static class HasLocalAssignmentToMethodReturnValue implements Callable<Object> {
-
-        @Override
-        public Integer call() throws Exception {
-            int a = this.get10();
-            return a;
-        }
-
-        private int get10() {
-            return 10;
-        }
-    }
-
-    @Test
-    public void shouldReplaceAssignmentToMethodResultWith0() throws Exception {
-        final Mutant mutant = getFirstMutant(HasLocalAssignmentToMethodReturnValue.class);
-        assertMutantCallableReturns(new HasLocalAssignmentToMethodReturnValue(), mutant, 0);
     }
 
     private static class HasLocalDouble implements Callable<Object> {
@@ -126,7 +107,7 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
     }
 
     @Test
-    public void shouldReplaceDoubleAssignmentWith0() throws Exception {
+    public void shouldReplaceDoubleInitializationWith0() throws Exception {
         final Mutant mutant = getFirstMutant(HasLocalDouble.class);
         assertMutantCallableReturns(new HasLocalDouble(), mutant, 0D);
     }
@@ -140,7 +121,7 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
     }
 
     @Test
-    public void shouldReplaceLongAssignmentWith0() throws Exception {
+    public void shouldReplaceLongInitializationWith0() throws Exception {
         final Mutant mutant = getFirstMutant(HasLocalLong.class);
         assertMutantCallableReturns(new HasLocalLong(), mutant, 0L);
     }
@@ -154,8 +135,46 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
     }
 
     @Test
-    public void shouldReplaceStringAssignmentWithNull() throws Exception {
+    public void shouldReplaceStringInitializationWithNull() throws Exception {
         final Mutant mutant = getFirstMutant(HasLocalString.class);
         assertMutantCallableReturns(new HasLocalString(), mutant, null);
+    }
+
+    private static class HasIfElse implements Callable<Object> {
+        private boolean iff;
+
+        public HasIfElse(boolean iff) {
+            this.iff = iff;
+        }
+
+        @Override
+        public Integer call() {
+            if (this.iff) {
+                int b = 1;
+                return b;
+            } else {
+                int a = 1;
+                a = 2;
+                return a;
+            }
+        }
+    }
+
+    @Test
+    public void shouldRemoveInitializationInIfClause() throws Exception {
+        final Mutant mutant = getFirstMutant(HasIfElse.class);
+        assertMutantCallableReturns(new HasIfElse(true), mutant, 0);
+    }
+
+    @Test
+    public void shouldRemoveInitializationInElseClause() throws Exception {
+        final Mutant mutant = getNthMutant(HasIfElse.class, 1);
+        assertMutantCallableReturns(new HasIfElse(false), mutant, 2);
+    }
+
+    @Test
+    public void shouldRemoveAssignmentInElseClause() throws Exception {
+        final Mutant mutant = getNthMutant(HasIfElse.class, 2);
+        assertMutantCallableReturns(new HasIfElse(false), mutant, 1);
     }
 }
