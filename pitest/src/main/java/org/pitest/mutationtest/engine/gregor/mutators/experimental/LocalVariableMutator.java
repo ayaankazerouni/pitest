@@ -18,7 +18,7 @@ public class LocalVariableMutator implements MethodMutatorFactory {
         private final MutationContext context;
         private Set<Integer> locals;
 
-        public LocalVariableVisitor(final MutationContext context, final MethodVisitor delegateVisitor) {
+        LocalVariableVisitor(final MutationContext context, final MethodVisitor delegateVisitor) {
             super(ASMVersion.ASM_VERSION, delegateVisitor);
             this.context = context;
             this.locals = new HashSet<>();
@@ -46,6 +46,15 @@ public class LocalVariableMutator implements MethodMutatorFactory {
                                        Label start, Label end, int index) {
             this.locals.remove(index);
             super.visitLocalVariable(name, desc, signature, start, end, index);
+        }
+
+        @Override
+        public void visitIincInsn(int var, int increment) {
+            if (this.shouldMutate(var)) {
+                // no op, just don't do the increment
+            } else {
+                super.visitIincInsn(var, increment);
+            }
         }
 
         // For initialization statements, change the assigned value to

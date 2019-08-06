@@ -177,4 +177,47 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
         final Mutant mutant = getNthMutant(HasIfElse.class, 2);
         assertMutantCallableReturns(new HasIfElse(false), mutant, 1);
     }
+
+    private static class HasManyAssignments implements Callable<Object> {
+
+        @Override
+        public Integer call() {
+            int a = 11;
+            a++;
+            a = a + 2;
+            a = a + 3;
+            a = a + 4;
+            return a;
+        }
+    }
+
+    @Test
+    public void shouldReplaceInitializationWith0() throws Exception {
+        final Mutant mutant = getFirstMutant(HasManyAssignments.class);
+        assertMutantCallableReturns(new HasManyAssignments(), mutant, 10);
+    }
+
+    @Test
+    public void shouldRemoveIncrement() throws Exception {
+        final Mutant mutant = getNthMutant(HasManyAssignments.class, 1);
+        assertMutantCallableReturns(new HasManyAssignments(), mutant, 20);
+    }
+
+    @Test
+    public void shouldRemoveFirstAssignment() throws Exception {
+        final Mutant mutant = getNthMutant(HasManyAssignments.class, 2);
+        assertMutantCallableReturns(new HasManyAssignments(), mutant, 19);
+    }
+
+    @Test
+    public void shouldRemoveSecondAssignment() throws Exception {
+        final Mutant mutant = getNthMutant(HasManyAssignments.class, 3);
+        assertMutantCallableReturns(new HasManyAssignments(), mutant, 18);
+    }
+
+    @Test
+    public void shouldRemoveThirdAssignment() throws Exception {
+        final Mutant mutant = getNthMutant(HasManyAssignments.class, 4);
+        assertMutantCallableReturns(new HasManyAssignments(), mutant, 17);
+    }
 }
