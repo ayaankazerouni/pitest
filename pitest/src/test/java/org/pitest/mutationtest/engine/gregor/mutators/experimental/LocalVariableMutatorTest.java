@@ -13,7 +13,6 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
         createTesteeWith(new LocalVariableMutator());
     }
 
-
     private static class HasNoLocals implements Callable<Object> {
         @Override
         public Integer call() throws Exception {
@@ -179,14 +178,10 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
     }
 
     private static class HasManyAssignments implements Callable<Object> {
-
         @Override
         public Integer call() {
             int a = 11;
             a++;
-            a = a + 2;
-            a = a + 3;
-            a = a + 4;
             return a;
         }
     }
@@ -194,30 +189,29 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
     @Test
     public void shouldReplaceInitializationWith0() throws Exception {
         final Mutant mutant = getFirstMutant(HasManyAssignments.class);
-        assertMutantCallableReturns(new HasManyAssignments(), mutant, 10);
+        assertMutantCallableReturns(new HasManyAssignments(), mutant, 1);
     }
 
     @Test
     public void shouldRemoveIncrement() throws Exception {
         final Mutant mutant = getNthMutant(HasManyAssignments.class, 1);
-        assertMutantCallableReturns(new HasManyAssignments(), mutant, 20);
+        assertMutantCallableReturns(new HasManyAssignments(), mutant, 11);
+    }
+
+    private static class HasAssignmentToVariable implements Callable<Object> {
+        @Override
+        public Integer call() throws Exception {
+            int i = 10;
+            for (int j = i; j < 10; j++) {
+                i++;
+            }
+            return i;
+        }
     }
 
     @Test
-    public void shouldRemoveFirstAssignment() throws Exception {
-        final Mutant mutant = getNthMutant(HasManyAssignments.class, 2);
-        assertMutantCallableReturns(new HasManyAssignments(), mutant, 19);
-    }
-
-    @Test
-    public void shouldRemoveSecondAssignment() throws Exception {
-        final Mutant mutant = getNthMutant(HasManyAssignments.class, 3);
-        assertMutantCallableReturns(new HasManyAssignments(), mutant, 18);
-    }
-
-    @Test
-    public void shouldRemoveThirdAssignment() throws Exception {
-        final Mutant mutant = getNthMutant(HasManyAssignments.class, 4);
-        assertMutantCallableReturns(new HasManyAssignments(), mutant, 17);
+    public void shouldRemoveAssignmentToVariable() throws Exception {
+        final Mutant mutant = getNthMutant(HasAssignmentToVariable.class, 1);
+        assertMutantCallableReturns(new HasAssignmentToVariable(), mutant, 20);
     }
 }

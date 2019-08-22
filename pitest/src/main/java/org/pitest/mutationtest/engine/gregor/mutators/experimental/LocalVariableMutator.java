@@ -28,7 +28,7 @@ public class LocalVariableMutator implements MethodMutatorFactory {
         public void visitVarInsn(final int opcode, int var) {
             if (this.isStore(opcode)) {
                 boolean isDeclaration = this.locals.add(var);
-                if (this.shouldMutate(var)) {
+                if (this.shouldMutate(var, opcode)) {
                     if (isDeclaration) {
                         this.mutateDeclaration(opcode, var);
                     } else {
@@ -50,7 +50,7 @@ public class LocalVariableMutator implements MethodMutatorFactory {
 
         @Override
         public void visitIincInsn(int var, int increment) {
-            if (this.shouldMutate(var)) {
+            if (this.shouldMutate(var, Opcodes.IINC)) {
                 // no op, just don't do the increment
             } else {
                 super.visitIincInsn(var, increment);
@@ -115,9 +115,29 @@ public class LocalVariableMutator implements MethodMutatorFactory {
             }
         }
 
-        private boolean shouldMutate(final int var) {
+        private String getInsnType(final int opcode) {
+            switch (opcode) {
+                case Opcodes.ISTORE:
+                    return "Integer assignment";
+                case Opcodes.DSTORE:
+                    return "Double assignment";
+                case Opcodes.FSTORE:
+                    return "Float assignment";
+                case Opcodes.LSTORE:
+                    return "Long assignment";
+                case Opcodes.ASTORE:
+                    return "Reference assignment";
+                case Opcodes.IINC:
+                    return "Increment";
+                default:
+                    throw new IllegalArgumentException(opcode + " is not a valid mutatable opcode");
+            }
+        }
+
+        private boolean shouldMutate(final int var, final int opcode) {
+            String insnType = this.getInsnType(opcode);
             final MutationIdentifier mutationId = this.context.registerMutation(
-                    LocalVariableMutator.this, "Removed assignment to local variable " + var);
+                    LocalVariableMutator.this, "Removed " + insnType + " on local variable " + var);
             return this.context.shouldMutate(mutationId);
         }
     }
