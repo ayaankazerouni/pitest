@@ -139,44 +139,6 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
         assertMutantCallableReturns(new HasLocalString(), mutant, null);
     }
 
-    private static class HasIfElse implements Callable<Object> {
-        private boolean iff;
-
-        public HasIfElse(boolean iff) {
-            this.iff = iff;
-        }
-
-        @Override
-        public Integer call() {
-            if (this.iff) {
-                int b = 1;
-                return b;
-            } else {
-                int a = 1;
-                a = 2;
-                return a;
-            }
-        }
-    }
-
-    @Test
-    public void shouldRemoveInitializationInIfClause() throws Exception {
-        final Mutant mutant = getFirstMutant(HasIfElse.class);
-        assertMutantCallableReturns(new HasIfElse(true), mutant, 0);
-    }
-
-    @Test
-    public void shouldRemoveInitializationInElseClause() throws Exception {
-        final Mutant mutant = getNthMutant(HasIfElse.class, 1);
-        assertMutantCallableReturns(new HasIfElse(false), mutant, 2);
-    }
-
-    @Test
-    public void shouldRemoveAssignmentInElseClause() throws Exception {
-        final Mutant mutant = getNthMutant(HasIfElse.class, 2);
-        assertMutantCallableReturns(new HasIfElse(false), mutant, 1);
-    }
-
     private static class HasManyAssignments implements Callable<Object> {
         @Override
         public Integer call() {
@@ -198,20 +160,31 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
         assertMutantCallableReturns(new HasManyAssignments(), mutant, 11);
     }
 
-    private static class HasAssignmentToVariable implements Callable<Object> {
+    private static class HasDeclarationInIfElse implements Callable<Object> {
+        private boolean iff;
+
+        public HasDeclarationInIfElse(boolean iff) {
+            this.iff = iff;
+        }
+
         @Override
         public Integer call() throws Exception {
-            int i = 10;
-            for (int j = i; j < 10; j++) {
-                i++;
+            int k = 20;
+            if (this.iff) {
+                int i = 0;
+                return i;
+            } else {
+                int j = 1;
+                j = j + 1;
             }
-            return i;
+            k = k + 2;
+            return k;
         }
     }
 
     @Test
     public void shouldRemoveAssignmentToVariable() throws Exception {
-        final Mutant mutant = getNthMutant(HasAssignmentToVariable.class, 1);
-        assertMutantCallableReturns(new HasAssignmentToVariable(), mutant, 20);
+        final Mutant mutant = getNthMutant(HasDeclarationInIfElse.class,2);
+        assertMutantCallableReturns(new HasDeclarationInIfElse(true), mutant, 10);
     }
 }
