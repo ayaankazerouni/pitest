@@ -169,22 +169,52 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
 
         @Override
         public Integer call() throws Exception {
-            int k = 20;
+            int a = 0;
             if (this.iff) {
-                int i = 0;
+                int i = 1;
+                i = 2;
                 return i;
             } else {
-                int j = 1;
-                j = j + 1;
+                a = 5;
+                int j = 2;
             }
-            k = k + 2;
-            return k;
+
+            a = a + 2;
+            int k = 10;
+            return a;
         }
     }
 
     @Test
     public void shouldRemoveAssignmentToVariable() throws Exception {
-        final Mutant mutant = getNthMutant(HasDeclarationInIfElse.class,2);
-        assertMutantCallableReturns(new HasDeclarationInIfElse(true), mutant, 10);
+        final Mutant mutant = getNthMutant(HasDeclarationInIfElse.class,0);
+        assertMutantCallableReturns(new HasDeclarationInIfElse(true), mutant, 0);
+    }
+
+    private static class HasDeclarationInIfWithLoop implements Callable<Object> {
+        private boolean iff;
+
+        public HasDeclarationInIfWithLoop(boolean iff) {
+            this.iff = iff;
+        }
+
+        public Integer call() throws Exception {
+            if (this.iff) {
+                int j = 5;
+                for (int i = 5; i < 10; i++) {
+                    j = j + i;
+                }
+
+                return j;
+            }
+
+            return 0;
+        }
+    }
+
+    @Test
+    public void shouldMutateNestedBlocks() throws Exception {
+        final Mutant mutant = getNthMutant(HasDeclarationInIfWithLoop.class, 0);
+        assertMutantCallableReturns(new HasDeclarationInIfWithLoop(true), mutant, 50);
     }
 }

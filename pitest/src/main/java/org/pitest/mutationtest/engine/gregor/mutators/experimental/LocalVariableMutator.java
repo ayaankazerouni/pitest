@@ -11,38 +11,44 @@ import org.pitest.mutationtest.engine.gregor.MutationContext;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Stack;
 
 public class LocalVariableMutator implements MethodMutatorFactory {
 
     private final class LocalVariableVisitor extends MethodVisitor {
-        private final MutationContext context;
-        private Set<Integer> locals;
-
-        private static final String DECLARATION = "declaration";
+        private static final String INITIALIZATION = "initialization";
         private static final String ASSIGNMENT = "assignment";
         private static final String INCREMENT = "increment";
+
+        private final MutationContext context;
+        private final Stack<Set<Integer>> locals;
 
         LocalVariableVisitor(final MutationContext context, final MethodVisitor delegateVisitor) {
             super(ASMVersion.ASM_VERSION, delegateVisitor);
             this.context = context;
-            this.locals = new HashSet<>();
+            this.locals = new Stack<>();
+            this.locals.push(new HashSet<>());
+        }
+
+        @Override
+        public void visitCode() {
+            System.out.println("\nStart");
         }
 
         @Override
         public void visitVarInsn(final int opcode, int var) {
             if (this.getStoreType(opcode).length() != 0) {
-                boolean isDeclaration = this.locals.add(var);
-                String type = isDeclaration ? DECLARATION : ASSIGNMENT;
-                System.out.println("Store " + var + " " + type + ", " + opcode + ": " + this.locals);
-                if (this.shouldMutate(var, opcode, type)) {
-                    if (isDeclaration) {
-                        System.out.println("  Declaration " + var + " " + type);
-                        this.mutateDeclaration(opcode, var);
-                    } else {
-                        System.out.println("  Assignment " + var + " " + type);
-                        this.mutateAssignment(opcode);
-                    }
-                    return;
+               boolean isInitialization = this.locals.isEmpty() || this.locals.peek().add(var);
+               System.out.println(isInitialization + " " + this.locals);
+                if (this.shouldMutate(var, opcode, ASSIGNMENT)) {
+//                    if (isInitialization) {
+//                        System.out.println("\tMutating var " + var + " " + type);
+//                        this.mutateDeclaration(opcode, var);
+//                    } else {
+//                        System.out.println("\tMutating var " + var + " " + type);
+//                        this.mutateAssignment(opcode);
+//                    }
+//                    return;
                 }
             }
 
@@ -59,30 +65,36 @@ public class LocalVariableMutator implements MethodMutatorFactory {
         }
 
         @Override
-        public void visitLocalVariable(String name, String desc, String signature,
-                                       Label start, Label end, int index) {
-            System.out.print("Remove variable (" + index + ", " + name + "): " + this.locals);
-            this.locals.remove(index);
-            System.out.println(" -> " + this.locals);
-            super.visitLocalVariable(name, desc, signature, start, end, index);
-        }
-
-        @Override
         public void visitFrame(int type, int nLocal, Object[] local, int nStack, Object[] stack) {
-            System.out.println("Visit frame. Type: " + type + ", Locals: " + nLocal + " Len: " + local.length);
             super.visitFrame(type, nLocal, local, nStack, stack);
+
+            if (!this.locals.isEmpty()) {
+                this.locals.pop();
+
+                for (int i = 0; i < nLocal; i++) {
+                    Object frameType = local[i];
+                    if (this.locals.isEmpty()) {
+                        this.locals.push(new HashSet<>());
+                    }
+                    this.locals.peek().add(i);
+                }
+            }
+
+            System.out.println("Visit frame: " + this.locals);
         }
 
         @Override
-        public void visitMethodInsn(final int opcode, final String owner,
-                                    final String name, final String desc, boolean itf) {
-            System.out.println("Visit method");
-            super.visitMethodInsn(opcode, owner, name, desc, itf);
-        }
+        public void visitJumpInsn(int opcode, Label label) {
+            super.visitJumpInsn(opcode, label);
+            if (opcode != Opcodes.GOTO) {
+                Set<Integer> newScope = new HashSet<>();
+                if (!this.locals.isEmpty()) {
+                    newScope.addAll(this.locals.peek());
+                }
+                this.locals.push(newScope);
+            }
 
-        @Override
-        public void visitMaxs(int maxStack, int maxLocals) {
-            System.out.println("Max locals: " + maxLocals);
+            System.out.println("Visit jump: " + this.locals);
         }
 
         // For initialization statements, change the assigned value to
