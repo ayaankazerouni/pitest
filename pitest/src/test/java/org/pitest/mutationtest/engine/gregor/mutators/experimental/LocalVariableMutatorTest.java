@@ -160,35 +160,41 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
         assertMutantCallableReturns(new HasManyAssignments(), mutant, 11);
     }
 
-    private static class HasDeclarationInIfElse implements Callable<Object> {
+    private static class HasIfElse implements Callable<Object> {
         private boolean iff;
 
-        public HasDeclarationInIfElse(boolean iff) {
+        public HasIfElse(boolean iff) {
             this.iff = iff;
         }
 
         @Override
         public Integer call() throws Exception {
-            int a = 0;
+            int a = 1; // var 1
             if (this.iff) {
-                int i = 1;
-                i = 2;
+                int i = 1; // var 2
+                i = 2; // var 2
                 return i;
             } else {
-                a = 5;
-                int j = 2;
+                a = 5; // var 1
+                int j = 2; // var 2
             }
 
-            a = a + 2;
-            int k = 10;
-            return a;
+            a = a + 2; // var 1
+            int k = 10; // var 2
+            return k;
         }
     }
 
     @Test
-    public void shouldRemoveAssignmentToVariable() throws Exception {
-        final Mutant mutant = getNthMutant(HasDeclarationInIfElse.class,0);
-        assertMutantCallableReturns(new HasDeclarationInIfElse(true), mutant, 0);
+    public void shouldRemoveInitializationInReusedSlotInElse() throws Exception {
+        final Mutant mutant = getNthMutant(HasIfElse.class, 4);
+        assertMutantCallableReturns(new HasIfElse(false), mutant, 10);
+    }
+
+    @Test
+    public void shouldRemoveInitializationInReusedSlotAfterElse() throws Exception {
+        final Mutant mutant = getNthMutant(HasIfElse.class, 6);
+        assertMutantCallableReturns(new HasIfElse(false), mutant, 0);
     }
 
     private static class HasDeclarationInIfWithLoop implements Callable<Object> {
@@ -200,11 +206,12 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
 
         public Integer call() throws Exception {
             if (this.iff) {
-                int j = 5;
+                int j = 1;
                 for (int i = 5; i < 10; i++) {
                     j = j + i;
                 }
 
+                int k = 2;
                 return j;
             }
 
@@ -213,8 +220,16 @@ public class LocalVariableMutatorTest extends MutatorTestBase {
     }
 
     @Test
-    public void shouldMutateNestedBlocks() throws Exception {
-        final Mutant mutant = getNthMutant(HasDeclarationInIfWithLoop.class, 0);
-        assertMutantCallableReturns(new HasDeclarationInIfWithLoop(true), mutant, 50);
+    public void shouldSetLoopInitializerTo0() throws Exception {
+        final Mutant mutant = getNthMutant(HasDeclarationInIfWithLoop.class, 1);
+        assertMutantCallableReturns(new HasDeclarationInIfWithLoop(true), mutant, 46);
+    }
+
+    @Test
+    public void shouldRemoveAssignmentInLoopBody() throws Exception {
+        // In bytecode instructions, the increment comes *after* an iteration of the loop, making
+        // the assignment in the loop's body the 2nd mutation opportunity, not the 3rd
+        final Mutant mutant = getNthMutant(HasDeclarationInIfWithLoop.class, 2);
+        assertMutantCallableReturns(new HasDeclarationInIfWithLoop(true), mutant, 0);
     }
 }

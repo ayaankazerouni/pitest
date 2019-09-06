@@ -3,6 +3,8 @@ package org.pitest.mutationtest.engine.gregor.mutators.experimental;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.commons.AnalyzerAdapter;
+import org.objectweb.asm.commons.LocalVariablesSorter;
 import org.pitest.bytecode.ASMVersion;
 import org.pitest.mutationtest.engine.MutationIdentifier;
 import org.pitest.mutationtest.engine.gregor.MethodInfo;
@@ -21,13 +23,14 @@ public class LocalVariableMutator implements MethodMutatorFactory {
         private static final String INCREMENT = "increment";
 
         private final MutationContext context;
-        private final Stack<Set<Integer>> locals;
+        private final Stack<Set<Integer>> localsInScope;
 
-        LocalVariableVisitor(final MutationContext context, final MethodVisitor delegateVisitor) {
+        LocalVariableVisitor(final MutationContext context, final MethodInfo methodInfo,
+                             final MethodVisitor delegateVisitor) {
             super(ASMVersion.ASM_VERSION, delegateVisitor);
             this.context = context;
-            this.locals = new Stack<>();
-            this.locals.push(new HashSet<>());
+            this.localsInScope = new Stack<>();
+            this.localsInScope.push(new HashSet<>());
         }
 
         @Override
@@ -38,17 +41,15 @@ public class LocalVariableMutator implements MethodMutatorFactory {
         @Override
         public void visitVarInsn(final int opcode, int var) {
             if (this.getStoreType(opcode).length() != 0) {
-               boolean isInitialization = this.locals.isEmpty() || this.locals.peek().add(var);
-               System.out.println(isInitialization + " " + this.locals);
+               boolean isInitialization = this.localsInScope.isEmpty() || this.localsInScope.peek().add(var);
+               System.out.println("Store " + isInitialization + " " + this.localsInScope);
                 if (this.shouldMutate(var, opcode, ASSIGNMENT)) {
-//                    if (isInitialization) {
-//                        System.out.println("\tMutating var " + var + " " + type);
-//                        this.mutateDeclaration(opcode, var);
-//                    } else {
-//                        System.out.println("\tMutating var " + var + " " + type);
-//                        this.mutateAssignment(opcode);
-//                    }
-//                    return;
+                    if (isInitialization) {
+                        this.mutateDeclaration(opcode, var);
+                    } else {
+                        this.mutateAssignment(opcode);
+                    }
+                    return;
                 }
             }
 
@@ -57,8 +58,10 @@ public class LocalVariableMutator implements MethodMutatorFactory {
 
         @Override
         public void visitIincInsn(int var, int increment) {
+            System.out.println("Reached increment");
             if (this.shouldMutate(var, Opcodes.IINC, INCREMENT)) {
                 // no op, just don't do the increment
+                System.out.println("\tMutating increment");
             } else {
                 super.visitIincInsn(var, increment);
             }
@@ -68,19 +71,17 @@ public class LocalVariableMutator implements MethodMutatorFactory {
         public void visitFrame(int type, int nLocal, Object[] local, int nStack, Object[] stack) {
             super.visitFrame(type, nLocal, local, nStack, stack);
 
-            if (!this.locals.isEmpty()) {
-                this.locals.pop();
+            if (!this.localsInScope.isEmpty()) {
+                this.localsInScope.pop();
 
-                for (int i = 0; i < nLocal; i++) {
-                    Object frameType = local[i];
-                    if (this.locals.isEmpty()) {
-                        this.locals.push(new HashSet<>());
+                for (int i = 0; i < local.length; i++) {
+                    if (this.localsInScope.isEmpty()) {
+                        this.localsInScope.push(new HashSet<>());
                     }
-                    this.locals.peek().add(i);
                 }
             }
 
-            System.out.println("Visit frame: " + this.locals);
+            System.out.println("Visit frame: " + this.localsInScope);
         }
 
         @Override
@@ -88,13 +89,13 @@ public class LocalVariableMutator implements MethodMutatorFactory {
             super.visitJumpInsn(opcode, label);
             if (opcode != Opcodes.GOTO) {
                 Set<Integer> newScope = new HashSet<>();
-                if (!this.locals.isEmpty()) {
-                    newScope.addAll(this.locals.peek());
+                if (!this.localsInScope.isEmpty()) {
+                    newScope.addAll(this.localsInScope.peek());
                 }
-                this.locals.push(newScope);
+                this.localsInScope.push(newScope);
             }
 
-            System.out.println("Visit jump: " + this.locals);
+            System.out.println("Visit jump: " + this.localsInScope + " to " + label);
         }
 
         // For initialization statements, change the assigned value to
@@ -170,7 +171,7 @@ public class LocalVariableMutator implements MethodMutatorFactory {
 
     @Override
     public MethodVisitor create(MutationContext context, MethodInfo methodInfo, MethodVisitor methodVisitor) {
-        return new LocalVariableVisitor(context, methodVisitor);
+        return new LocalVariableVisitor(context, methodInfo, methodVisitor);
     }
 
     @Override
